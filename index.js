@@ -79,8 +79,9 @@ export const crawl = async ({ url, depth }) => {
           for (let i = 0; i < links.length; i++) {
             queue.push(links[i]);
           }
+        } else {
+          return saveResultListToJsonFile();
         }
-        return saveResultListToJsonFile();
       }
     }
   }
