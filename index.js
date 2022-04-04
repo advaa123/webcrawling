@@ -27,14 +27,14 @@ const saveResultListToJsonFile = () => {
 };
 
 const getValidUrl = (link, url) => {
-  /** Returns a valid url to fetch from while crawling & 
-    * makes sure the stripped URL hasn't already been visited.
-    *
-    * Examples:
-    *   getUrl("/about", "http://example.com") => "http://example.com/about"
-    *   getUrl("http://example.com/1/#", "http://example.com") => "http://example.com/1"
-    *   getUrl("http://example.com/", "http://example.com") => "http://example.com"
-    */
+  /** Returns a valid url to fetch from while crawling &
+   * makes sure the stripped URL hasn't already been visited.
+   *
+   * Examples:
+   *   getUrl("/about", "http://example.com") => "http://example.com/about"
+   *   getUrl("http://example.com/1/#", "http://example.com") => "http://example.com/1"
+   *   getUrl("http://example.com/", "http://example.com") => "http://example.com"
+   */
 
   if (!link || link === undefined) return;
   let newLink = link;
@@ -96,6 +96,7 @@ const levelCrawl = async ({ url, depth, getLinks }) => {
     return links;
   } catch (error) {
     console.log(`Failed to fetch from ${getValidUrl(url)}`);
+    return [];
   }
 };
 
