@@ -3,5 +3,5 @@
 In order to run the program, use the following command in your terminal:
 
 ```
-node text.js <url> <depth>
+node crawler.js <url> <depth>
 ```
