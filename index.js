@@ -27,22 +27,28 @@ const saveResultListToJsonFile = () => {
 
 const getUrl = (link, url) => {
   if (!link || link === undefined) return;
+  let newLink = link;
+
   if (link.includes("http")) {
-    if (link.endsWith("/") || link.endsWith("#"))
-    return link.slice(0, link.length);
+    newLink = link;
+  } else if (link.startsWith("/")) {
+    newLink = `${url}${link}`;
+  } else {
+    newLink = `${url}/${link}`;
   }
-  else if (link.startsWith("/")) {
-    return `${url}${link}`;
+  if (newLink.includes("#")) {
+    newLink = newLink.split("#")[0];
   }
-  return `${url}/${link}`;
+  if (newLink.endsWith("/")) return newLink.substring(0, newLink.length - 1);
+  return newLink;
 };
 
-const levelCrawl = async ({ url, depth }) => {
+const levelCrawl = async ({ url, depth, getLinks }) => {
   console.log(seenUrls);
   if (seenUrls.has(getUrl(url))) return;
   if (!url || url === undefined) return;
 
-  console.log("crawling ", url, depth);
+  console.log(`crawling... ${getUrl(url)} - level: ${depth}`);
   const response = await fetch(url);
   const html = await response.text();
   const $ = cheerio.load(html);
@@ -60,10 +66,14 @@ const levelCrawl = async ({ url, depth }) => {
 
   if (images.length) addImagesObjectToList(images);
 
-  const links = $("a")
+  if (!getLinks) return;
+
+  let links = $("a")
     .map((_, link) => getUrl(link.attribs.href, url))
     .get();
 
+  links = [...new Set(links)];
+  console.log(links);
   return links || [];
 };
 
@@ -77,14 +87,14 @@ export const crawl = async ({ url, depth }) => {
 
     while (queue.length > 0 && level < depth) {
       let link = queue.shift();
-      let links = await levelCrawl({ url: link, depth: level });
+      let links = await levelCrawl({ url: link, depth: level, getLinks: true });
       seenUrls.add(link);
 
       if (links !== undefined && links.length && level < depth) {
         level++;
         for (let i = 0; i < links.length; i++) {
           queue.push(links[i]);
-          await levelCrawl({ url: links[i], depth: level });
+          await levelCrawl({ url: links[i], depth: level, getLinks: false });
         }
       }
     }
