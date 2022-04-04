@@ -2,15 +2,16 @@ import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 import fs from "fs";
 
-const URL = "http://google.com";
 const seenUrls = new Set();
 let imagesObjList = [];
 
-const addImagesObjectToList = (results) => {
+const addImagesToResults = (results) => {
+  // Adds images from page to the results list (imagesObjList)
   imagesObjList.push(...results);
 };
 
 const saveResultListToJsonFile = () => {
+  // Makes a JSON file out of the results list
   fs.writeFile(
     "output.json",
     JSON.stringify({ results: imagesObjList }),
@@ -25,7 +26,16 @@ const saveResultListToJsonFile = () => {
   );
 };
 
-const getUrl = (link, url) => {
+const getValidUrl = (link, url) => {
+  /* Returns a valid url to fetch from while crawling & 
+      makes sure the stripped URL hasn't already been visited.
+
+     Examples:
+        getUrl("/about", "http://example.com") => "http://example.com/about"
+        getUrl("http://example.com/1/#", "http://example.com") => "http://example.com/1"
+        getUrl("http://example.com/", "http://example.com") => "http://example.com"
+  */
+
   if (!link || link === undefined) return;
   let newLink = link;
 
@@ -43,41 +53,56 @@ const getUrl = (link, url) => {
   return newLink;
 };
 
-const levelCrawl = async ({ url, depth, getLinks }) => {
-  console.log(seenUrls);
-  if (seenUrls.has(getUrl(url))) return;
-  if (!url || url === undefined) return;
-
-  console.log(`crawling... ${getUrl(url)} - level: ${depth}`);
-  const response = await fetch(url);
-  const html = await response.text();
-  const $ = cheerio.load(html);
-
-  const images = $("img")
+const extractImages = ($, url, depth) => {
+  // Extracts the images from the page & returns a fitting object
+  return $("img")
     .map((_, image) => {
       if (!image.attribs.src) return;
       return {
-        imageUrl: getUrl(image.attribs.src, url),
+        imageUrl: image.attribs.src,
         sourceUrl: url,
         depth,
       };
     })
     .get();
+};
 
-  if (images.length) addImagesObjectToList(images);
-
-  if (!getLinks) return;
-
+const extractLinks = ($, url) => {
+  // Extracts the links from the page & returns a unique list of them
   let links = $("a")
-    .map((_, link) => getUrl(link.attribs.href, url))
+    .map((_, link) => getValidUrl(link.attribs.href, url))
     .get();
 
-  links = [...new Set(links)];
-  console.log(links);
-  return links || [];
+  return [...new Set(links)];
+};
+
+const levelCrawl = async ({ url, depth, getLinks }) => {
+  // Web scraping logic - actual use of cheerio
+
+  if (!url || url === undefined) return;
+  if (seenUrls.has(getValidUrl(url))) return;
+
+  console.log(`crawling... ${getValidUrl(url)} - level: ${depth}`);
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    const images = extractImages($, url, depth);
+    if (images.length) addImagesToResults(images);
+    if (!getLinks) return;
+
+    let links = extractLinks($, url);
+    console.log(links);
+    return links;
+  } catch (error) {
+    console.log(`Failed to fetch from ${getValidUrl(url)}`);
+  }
 };
 
 export const crawl = async ({ url, depth }) => {
+  // Web scraping by depth logic
+
   if (depth === 0) {
     await levelCrawl({ url, depth });
   } else {
