@@ -7,7 +7,7 @@ const seenUrls = new Set();
 let imagesObjList = [];
 
 const addImagesObjectToList = (results) => {
-  imagesObjList.push(results);
+  imagesObjList.push(...results);
 };
 
 const saveResultListToJsonFile = () => {
@@ -35,9 +35,10 @@ const getUrl = (link, url) => {
 };
 
 export const levelCrawl = async ({ url, depth }) => {
-  console.log("crawling ", url);
   if (seenUrls.has(getUrl(url))) return;
   if (!url || url === undefined) return;
+
+  console.log("crawling ", url, depth);
 
   seenUrls.add(url);
   const response = await fetch(url);
@@ -55,32 +56,31 @@ export const levelCrawl = async ({ url, depth }) => {
     })
     .get();
 
-  addImagesObjectToList(images);
+  if (images.length) addImagesObjectToList(images);
 
   const links = $("a")
     .map((_, link) => getUrl(link.attribs.href, url))
     .get();
 
-  return links;
+  return links || [];
 };
 
 export const crawl = async ({ url, depth }) => {
   if (depth === 0) {
-    levelCrawl({ url, depth });
+    await levelCrawl({ url, depth });
   } else {
     const queue = [];
     queue.push(url);
+    let j = 0;
 
-    for (let j = 0; j < depth; j++) {
-      for (let count = 0; count < queue.length; count++) {
-        let link = queue.shift();
-        let links = await levelCrawl({ url: link, depth: j });
-        if (links !== undefined) {
-          for (let i = 0; i < links.length; i++) {
-            queue.push(links[i]);
-          }
-        } else {
-          return saveResultListToJsonFile();
+    while (queue.length > 0) {
+      let link = queue.shift();
+      let links = await levelCrawl({ url: link, depth: j });
+      if (links.length && j < depth) {
+        j++;
+        for (let i = 0; i < links.length; i++) {
+          queue.push(links[i]);
+          await levelCrawl({ url: link, depth: j });
         }
       }
     }
