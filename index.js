@@ -34,13 +34,11 @@ const getUrl = (link, url) => {
   return `${url}/${link}`;
 };
 
-export const levelCrawl = async ({ url, depth }) => {
+const levelCrawl = async ({ url, depth }) => {
   if (seenUrls.has(getUrl(url))) return;
   if (!url || url === undefined) return;
 
   console.log("crawling ", url, depth);
-
-  seenUrls.add(url);
   const response = await fetch(url);
   const html = await response.text();
   const $ = cheerio.load(html);
@@ -71,16 +69,18 @@ export const crawl = async ({ url, depth }) => {
   } else {
     const queue = [];
     queue.push(url);
-    let j = 0;
+    let level = 0;
 
-    while (queue.length > 0) {
+    while (queue.length > 0 && level < depth) {
       let link = queue.shift();
-      let links = await levelCrawl({ url: link, depth: j });
-      if (links.length && j < depth) {
-        j++;
+      let links = await levelCrawl({ url: link, depth: level });
+      seenUrls.add(url);
+
+      if (links !== undefined && links.length && level < depth) {
+        level++;
         for (let i = 0; i < links.length; i++) {
           queue.push(links[i]);
-          await levelCrawl({ url: link, depth: j });
+          await levelCrawl({ url: links[i], depth: level });
         }
       }
     }
