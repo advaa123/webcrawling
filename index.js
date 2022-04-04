@@ -27,7 +27,10 @@ const saveResultListToJsonFile = () => {
 
 const getUrl = (link, url) => {
   if (!link || link === undefined) return;
-  if (link.includes("http")) return link;
+  if (link.includes("http")) {
+    if (link.endsWith("/") || link.endsWith("#"))
+    return link.slice(0, link.length);
+  }
   else if (link.startsWith("/")) {
     return `${url}${link}`;
   }
@@ -35,6 +38,7 @@ const getUrl = (link, url) => {
 };
 
 const levelCrawl = async ({ url, depth }) => {
+  console.log(seenUrls);
   if (seenUrls.has(getUrl(url))) return;
   if (!url || url === undefined) return;
 
@@ -74,7 +78,7 @@ export const crawl = async ({ url, depth }) => {
     while (queue.length > 0 && level < depth) {
       let link = queue.shift();
       let links = await levelCrawl({ url: link, depth: level });
-      seenUrls.add(url);
+      seenUrls.add(link);
 
       if (links !== undefined && links.length && level < depth) {
         level++;
