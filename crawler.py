@@ -15,7 +15,8 @@ VALID_IMAGE_EXTENSIONS = [
     ".png",
     ".gif",
     ".bmp",
-    ".tiff"
+    ".tiff",
+    ".svg",
 ]
 
 LOCATION = 'results.json'
@@ -107,9 +108,9 @@ def crawl(input_url, depth=0):
                     for i in urls:
                         queue.append(i)
         else:
-            print("Done! There are not more websites to crawl!")
             break
 
+    print("Done!")
     save_images_to_json_file(images)
 
 
