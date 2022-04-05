@@ -103,7 +103,7 @@ def crawl(input_url, depth=0):
             for _ in range(len(queue)):
                 url = queue.pop(0)
                 urls = level_crawler(url, level)
-                if (len(url)):
+                if (len(urls)):
                     for i in urls:
                         queue.append(i)
         else:
