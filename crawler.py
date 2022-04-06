@@ -1,6 +1,10 @@
+from ast import parse
 import json
+from smtpd import DebuggingServer
 import sys
+from turtle import back
 from urllib.request import urljoin, urlparse
+import cssutils
 
 import requests
 from bs4 import BeautifulSoup
@@ -20,37 +24,75 @@ VALID_IMAGE_EXTENSIONS = [
 ]
 
 LOCATION = 'results.json'
+DebuggingServer
+
+
+def parse_url(url):
+    parsed_url = urlparse(url)
+    scheme = parsed_url.scheme
+
+    if "http" not in scheme:
+        if scheme == "":
+            scheme = "http"
+        else:
+            return False
+
+    if bool(parsed_url.netloc):
+        return f"{scheme}://{parsed_url.netloc}{parsed_url.path}"
+    return False
+
+
+def is_valid_attr(attr, url):
+    if(attr != "" and attr != None):
+        attr = urljoin(url, attr)
+        attr = parse_url(attr)
+        if attr:
+            return attr
+    return False
 
 
 def is_valid_img_extension(url):
     return any([url.endswith(e) for e in VALID_IMAGE_EXTENSIONS])
 
 
-def is_valid_attr(attr, url):
-    if(attr != "" and attr != None):
-        attr = urljoin(url, attr)
-        attr_parsed = urlparse(attr)
-        attr = f"{attr_parsed.scheme}://{attr_parsed.netloc}{attr_parsed.path}"
-        attr_parsed = urlparse(attr)
-        is_valid = attr_parsed.scheme.startswith(
-            "http") and bool(attr_parsed.netloc)
-        if (is_valid):
-            return attr
-    return False
+def extract_images(bs_object, url, level):
+    extract_img_tags(bs_object.findAll("img"), url, level)
+    extract_background_images(bs_object.findAll(
+        attrs={"style": True}), url, level)
 
 
-def extract_images(bs_images, url, level):
+def extract_img_tags(bs_images, url, level):
+    img_set = set()
     for result in bs_images:
         img = result.attrs.get("src")
         img = is_valid_attr(img, url)
         if img:
             if is_valid_img_extension(img):
-                img = {
-                    "imageUrl": img,
-                    "sourceUrl": url,
-                    "depth": level
-                }
-                images.append(img)
+                if img not in img_set:
+                    img_set.add(img)
+                    img = get_final_img_obj(img, url, level)
+                    images.append(img)
+
+
+def extract_background_images(bs_background_images, url, level):
+    if not bs_background_images:
+        return
+
+    bg_img_set = set()
+    for tag in bs_background_images:
+        style = cssutils.parseStyle(tag["style"], validate=False)
+        background_image = style['background-image']
+        if background_image:
+            background_image_url = background_image.split(
+                "url(")[1].split(")")[0]
+            background_image_url = parse_url(background_image_url)
+            if background_image_url:
+                if is_valid_img_extension(background_image_url):
+                    if background_image_url not in bg_img_set:
+                        img_obj = get_final_img_obj(
+                            background_image_url, url, level)
+                        bg_img_set.add(background_image_url)
+                        images.append(img_obj)
 
 
 def extract_links(bs_links, url, temp_links):
@@ -59,7 +101,7 @@ def extract_links(bs_links, url, temp_links):
         href = is_valid_attr(href, url)
         if href:
             if href not in links:
-                print("link -", href)
+                # print("link -", href)
                 links.add(href)
                 temp_links.add(href)
 
@@ -75,6 +117,14 @@ def save_images_to_json_file(images):
         print("Failed to save JSON file to disk.")
 
 
+def get_final_img_obj(img_url, source_url, depth):
+    return {
+        "imageUrl": img_url,
+        "sourceUrl": source_url,
+        "depth": depth
+    }
+
+
 def level_crawler(input_url, level=0):
     temp_links = set()
     try:
@@ -85,8 +135,7 @@ def level_crawler(input_url, level=0):
         print("Couldn't make the request for", input_url)
         return []
 
-    bs_images = beautiful_soup_object.findAll("img")
-    extract_images(bs_images, input_url, level)
+    extract_images(beautiful_soup_object, input_url, level)
 
     bs_links = beautiful_soup_object.findAll("a")
     extract_links(bs_links, input_url, temp_links)
