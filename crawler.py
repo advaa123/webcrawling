@@ -34,6 +34,9 @@ def root_url_exists(root):
 
 
 def parse_url(url):
+    if not url:
+        return False
+
     parsed_url = urlparse(url)
     scheme = parsed_url.scheme
 
@@ -78,6 +81,14 @@ def extract_img_tags(bs_images, url, level):
         add_final_image_to_global_images(img, img_set, url, level)
 
 
+def bg_img_url_extract_helper(value):
+    url = re.search(
+        r'\((.*?)\)', value)
+    if url:
+        return url.group(1)
+    return None
+
+
 def extract_background_images(bs_background_images, url, level):
     if not bs_background_images:
         return
@@ -88,8 +99,7 @@ def extract_background_images(bs_background_images, url, level):
         background_image = style['background-image']
 
         if background_image:
-            background_image_url = re.findall(
-                r'\((.*?)\)', background_image)[0]
+            background_image_url = bg_img_url_extract_helper(background_image)
             background_image_url = parse_url(background_image_url)
             add_final_image_to_global_images(
                 background_image_url, bg_img_set, url, level)
