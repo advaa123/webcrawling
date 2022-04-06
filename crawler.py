@@ -5,6 +5,7 @@ import sys
 from turtle import back
 from urllib.request import urljoin, urlparse
 import cssutils
+import re
 
 import requests
 from bs4 import BeautifulSoup
@@ -24,7 +25,16 @@ VALID_IMAGE_EXTENSIONS = [
 ]
 
 LOCATION = 'results.json'
-DebuggingServer
+
+
+# Section A - valid URLs
+
+def root_url_exists(root):
+    try:
+        response = requests.get(root)
+    except:
+        return False
+    return response.status_code == 200
 
 
 def parse_url(url):
@@ -55,6 +65,9 @@ def is_valid_img_extension(url):
     return any([url.endswith(e) for e in VALID_IMAGE_EXTENSIONS])
 
 
+# Section B - Extracting images
+# (img tags and background_images from other tags' styles)
+
 def extract_images(bs_object, url, level):
     extract_img_tags(bs_object.findAll("img"), url, level)
     extract_background_images(bs_object.findAll(
@@ -66,12 +79,7 @@ def extract_img_tags(bs_images, url, level):
     for result in bs_images:
         img = result.attrs.get("src")
         img = is_valid_attr(img, url)
-        if img:
-            if is_valid_img_extension(img):
-                if img not in img_set:
-                    img_set.add(img)
-                    img = get_final_img_obj(img, url, level)
-                    images.append(img)
+        add_final_image_to_global_images(img, img_set, url, level)
 
 
 def extract_background_images(bs_background_images, url, level):
@@ -82,28 +90,37 @@ def extract_background_images(bs_background_images, url, level):
     for tag in bs_background_images:
         style = cssutils.parseStyle(tag["style"], validate=False)
         background_image = style['background-image']
+
         if background_image:
-            background_image_url = background_image.split(
-                "url(")[1].split(")")[0]
+            background_image_url = re.findall(
+                r'\((.*?)\)', background_image)[0]
             background_image_url = parse_url(background_image_url)
-            if background_image_url:
-                if is_valid_img_extension(background_image_url):
-                    if background_image_url not in bg_img_set:
-                        img_obj = get_final_img_obj(
-                            background_image_url, url, level)
-                        bg_img_set.add(background_image_url)
-                        images.append(img_obj)
+            add_final_image_to_global_images(
+                background_image_url, bg_img_set, url, level)
 
 
-def extract_links(bs_links, url, temp_links):
-    for result in bs_links:
-        href = result.attrs.get("href")
-        href = is_valid_attr(href, url)
-        if href:
-            if href not in links:
-                # print("link -", href)
-                links.add(href)
-                temp_links.add(href)
+# Section C - Finalizing images
+# - preparing images objects
+# - adding them to the global images list
+# - extracting everything to a JSON file
+
+def add_final_image_to_global_images(img, img_set, url, level):
+    if not img or img == "":
+        return
+
+    if is_valid_img_extension(img):
+        if img not in img_set:
+            img_set.add(img)
+            img = get_final_img_obj(img, url, level)
+            images.append(img)
+
+
+def get_final_img_obj(img_url, source_url, depth):
+    return {
+        "imageUrl": img_url,
+        "sourceUrl": source_url,
+        "depth": depth
+    }
 
 
 def save_images_to_json_file(images):
@@ -117,13 +134,20 @@ def save_images_to_json_file(images):
         print("Failed to save JSON file to disk.")
 
 
-def get_final_img_obj(img_url, source_url, depth):
-    return {
-        "imageUrl": img_url,
-        "sourceUrl": source_url,
-        "depth": depth
-    }
+# Section D - Links extraction
 
+def extract_links(bs_links, url, temp_links):
+    for result in bs_links:
+        href = result.attrs.get("href")
+        href = is_valid_attr(href, url)
+        if href:
+            if href not in links:
+                # print("link -", href)
+                links.add(href)
+                temp_links.add(href)
+
+
+# Section E - crawling logic
 
 def level_crawler(input_url, level=0):
     temp_links = set()
@@ -162,13 +186,7 @@ def crawl(input_url, depth=0):
     save_images_to_json_file(images)
 
 
-def root_url_exists(root):
-    try:
-        response = requests.get(root)
-    except:
-        return False
-    return response.status_code == 200
-
+# Section F - CLI logic
 
 def main():
     if len(sys.argv) == 1:
