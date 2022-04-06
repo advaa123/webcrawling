@@ -1,15 +1,11 @@
-from ast import parse
 import json
-from smtpd import DebuggingServer
-import sys
-from turtle import back
-from urllib.request import urljoin, urlparse
-import cssutils
 import re
+import sys
+from urllib.request import urljoin, urlparse
 
+import cssutils
 import requests
 from bs4 import BeautifulSoup
-
 
 links = set()
 images = []
