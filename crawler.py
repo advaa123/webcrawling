@@ -95,8 +95,7 @@ def level_crawler(input_url, level=0):
 
 
 def crawl(input_url, depth=0):
-    queue = []
-    queue.append(input_url)
+    queue = [input_url]
     links.add(input_url)
     for level in range(depth + 1):
         if (len(queue)):
